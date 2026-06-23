@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 #include <cctype>
+#include <stack>
+#include <sstream>
 
 using namespace std;
 
@@ -1041,6 +1043,726 @@ void factorial(){
 }
 
 
+//generación de código intermedio
+
+struct Cuadruplo{
+
+    string op;
+    string arg1;
+    string arg2;
+    string res;
+};
+
+vector<Cuadruplo> cuadruplos;
+
+stack<string> pilaInicioWhile;
+stack<string> pilaFinWhile;
+
+stack<string> pilaFinIf;
+
+int contadorTemporal = 0;
+
+int contadorEtiqueta = 0;
+
+string nuevaEtiqueta(){
+
+    contadorEtiqueta++;
+
+    return "L" + to_string(contadorEtiqueta);
+}
+
+
+string nuevoTemporal(){
+
+    contadorTemporal++;
+
+    return "t" + to_string(contadorTemporal);
+}
+
+void agregarCuadruplo(
+    string op,
+    string arg1,
+    string arg2,
+    string res){
+
+    Cuadruplo c;
+
+    c.op = op;
+    c.arg1 = arg1;
+    c.arg2 = arg2;
+    c.res = res;
+
+    cuadruplos.push_back(c);
+}
+
+string quitarEspacios(string s){
+
+    string r = "";
+
+    for(char c : s){
+
+        if(!isspace(c)){
+
+            r += c;
+        }
+    }
+
+    return r;
+}
+
+string quitarPuntoComa(string s){
+
+    string r = "";
+
+    for(char c : s){
+
+        if(c != ';'){
+
+            r += c;
+        }
+    }
+
+    return r;
+}
+
+bool esOperador(char c){
+
+    return c == '+' ||
+           c == '-' ||
+           c == '*' ||
+           c == '/' ||
+           c == '%';
+}
+
+int prioridad(char op){
+
+    if(op == '*' ||
+       op == '/' ||
+       op == '%')
+        return 2;
+
+    if(op == '+' ||
+       op == '-')
+        return 1;
+
+    return 0;
+}
+
+string operadorTexto(char op){
+
+    string s = "";
+
+    s += op;
+
+    return s;
+}
+
+vector<string> separarExpresion(string expr){
+
+    vector<string> elementos;
+
+    string actual = "";
+
+    for(char c : expr){
+
+        if(isspace(c))
+            continue;
+
+        if(esOperador(c)){
+
+            if(actual != ""){
+
+                elementos.push_back(actual);
+                actual = "";
+            }
+
+            string op = "";
+
+            op += c;
+
+            elementos.push_back(op);
+        }
+
+        else{
+
+            actual += c;
+        }
+    }
+
+    if(actual != ""){
+
+        elementos.push_back(actual);
+    }
+
+    return elementos;
+}
+
+bool esFuncion(string s){
+
+    return s.find("potencia(") == 0 ||
+           s.find("raiz(") == 0 ||
+           s.find("sin(") == 0 ||
+           s.find("cos(") == 0 ||
+           s.find("tan(") == 0 ||
+           s.find("logb(") == 0 ||
+           s.find("redondear(") == 0;
+}
+
+vector<string> extraerParametros(string texto){
+
+    vector<string> params;
+
+    int ini = texto.find("(");
+    int fin = texto.rfind(")");
+
+    if(ini == string::npos ||
+       fin == string::npos)
+        return params;
+
+    string dentro =
+        texto.substr(
+            ini + 1,
+            fin - ini - 1);
+
+    string actual = "";
+
+    for(char c : dentro){
+
+        if(c == ','){
+
+            params.push_back(actual);
+            actual.clear();
+        }
+
+        else{
+
+            actual += c;
+        }
+    }
+
+    if(!actual.empty())
+        params.push_back(actual);
+
+    return params;
+}
+
+
+string generarFuncion(string texto){
+
+    string temp =
+        nuevoTemporal();
+
+    vector<string> p =
+        extraerParametros(texto);
+
+    if(texto.find("potencia(") == 0){
+
+        agregarCuadruplo(
+            "POTENCIA",
+            p[0],
+            p[1],
+            temp);
+    }
+
+    else if(texto.find("raiz(") == 0){
+
+        agregarCuadruplo(
+            "RAIZ",
+            p[0],
+            p[1],
+            temp);
+    }
+
+    else if(texto.find("sin(") == 0){
+
+        agregarCuadruplo(
+            "SIN",
+            p[0],
+            "-",
+            temp);
+    }
+
+    else if(texto.find("cos(") == 0){
+
+        agregarCuadruplo(
+            "COS",
+            p[0],
+            "-",
+            temp);
+    }
+
+    else if(texto.find("tan(") == 0){
+
+        agregarCuadruplo(
+            "TAN",
+            p[0],
+            "-",
+            temp);
+    }
+
+    else if(texto.find("logb(") == 0){
+
+        agregarCuadruplo(
+            "LOGB",
+            p[0],
+            p[1],
+            temp);
+    }
+
+    else if(texto.find("redondear(") == 0){
+
+        agregarCuadruplo(
+            "REDONDEAR",
+            p[0],
+            "-",
+            temp);
+    }
+
+    return temp;
+}
+
+bool esFactorial(string s){
+
+    return !s.empty() &&
+           s.back() == '!';
+}
+
+string generarFactorial(string s){
+
+    string valor =
+        s.substr(
+            0,
+            s.size()-1);
+
+    string temp =
+        nuevoTemporal();
+
+    agregarCuadruplo(
+        "FACTORIAL",
+        valor,
+        "-",
+        temp);
+
+    return temp;
+}
+
+
+
+
+string generarExpresion(string expr){
+
+    vector<string> elementos =
+        separarExpresion(expr);
+
+    stack<string> operandos;
+    stack<char> operadores;
+
+    for(string e : elementos){
+
+        if(e == "+" ||
+           e == "-" ||
+           e == "*" ||
+           e == "/" ||
+           e == "%")
+        {
+
+            char op = e[0];
+
+            while(!operadores.empty() &&
+                  prioridad(operadores.top())
+                  >= prioridad(op))
+            {
+
+                string der =
+                    operandos.top();
+                operandos.pop();
+
+                string izq =
+                    operandos.top();
+                operandos.pop();
+
+                char operador =
+                    operadores.top();
+
+                operadores.pop();
+
+                string temp =
+                    nuevoTemporal();
+
+                agregarCuadruplo(
+                    operadorTexto(operador),
+                    izq,
+                    der,
+                    temp);
+
+                operandos.push(temp);
+            }
+
+            operadores.push(op);
+        }
+
+        else{
+
+            if(esFuncion(e)){
+
+            operandos.push(generarFuncion(e));
+            }
+
+            else if(esFactorial(e)){
+
+            operandos.push(generarFactorial(e));
+            }
+            else{
+            operandos.push(e);
+            }
+        }
+    }
+
+    while(!operadores.empty()){
+
+        string der =
+            operandos.top();
+        operandos.pop();
+
+        string izq =
+            operandos.top();
+        operandos.pop();
+
+        char operador =
+            operadores.top();
+
+        operadores.pop();
+
+        string temp =
+            nuevoTemporal();
+
+        agregarCuadruplo(
+            operadorTexto(operador),
+            izq,
+            der,
+            temp);
+
+        operandos.push(temp);
+    }
+
+    return operandos.top();
+}
+
+
+bool esRelacional(string s){
+
+    return s == "<"  ||
+           s == ">"  ||
+           s == "<=" ||
+           s == ">=" ||
+           s == "==" ||
+           s == "!=";
+}
+
+
+string generarCondicion(string condicion){
+
+    string op;
+    string izq;
+    string der;
+
+    vector<string> relacionales =
+    {
+        "<=",
+        ">=",
+        "==",
+        "!=",
+        "<",
+        ">"
+    };
+
+    for(string r : relacionales){
+
+        size_t pos = condicion.find(r);
+
+        if(pos != string::npos){
+
+            op = r;
+
+            izq =
+                condicion.substr(
+                    0,
+                    pos);
+
+            der =
+                condicion.substr(
+                    pos + r.size());
+
+            break;
+        }
+    }
+
+    string temp =
+        nuevoTemporal();
+
+    agregarCuadruplo(
+        op,
+        izq,
+        der,
+        temp);
+
+    return temp;
+}
+
+
+
+
+void generarCodigoIntermedio(string codigo){
+
+    stringstream ss(codigo);
+
+    string linea;
+
+    while(getline(ss,linea)){
+
+        linea = quitarEspacios(linea);
+
+        if(linea == "")
+            continue;
+
+        //-----------------------------------
+        // DECLARAR
+        //-----------------------------------
+
+        if(linea.find("declarar") == 0){
+
+            int posIgual =
+                linea.find('=');
+
+            string variable =
+                linea.substr(
+                    8,
+                    posIgual - 8);
+
+            string expresion =
+                linea.substr(
+                    posIgual + 1);
+
+            expresion =
+                quitarPuntoComa(expresion);
+
+            string resultado =
+                generarExpresion(expresion);
+
+            agregarCuadruplo(
+                "=",
+                resultado,
+                "-",
+                variable);
+        }
+
+        //-----------------------------------
+        // SI
+        //-----------------------------------
+
+        else if(linea.find("si(") == 0){
+
+            size_t ini =
+                linea.find("(");
+
+            size_t fin =
+                linea.find(")");
+
+            string condicion =
+                linea.substr(
+                    ini + 1,
+                    fin - ini - 1);
+
+            string temp =
+                generarCondicion(condicion);
+
+            string etiquetaFin =
+                nuevaEtiqueta();
+
+            pilaFinIf.push(
+                etiquetaFin);
+
+            agregarCuadruplo(
+                "IF_FALSE",
+                temp,
+                "-",
+                etiquetaFin);
+        }
+
+        //-----------------------------------
+        // SINO
+        //-----------------------------------
+
+        else if(linea.find("sino") == 0){
+
+            string etiquetaNueva =
+                nuevaEtiqueta();
+
+            agregarCuadruplo(
+                "GOTO",
+                "-",
+                "-",
+                etiquetaNueva);
+
+            agregarCuadruplo(
+                "LABEL",
+                "-",
+                "-",
+                pilaFinIf.top());
+
+            pilaFinIf.pop();
+
+            pilaFinIf.push(
+                etiquetaNueva);
+        }
+
+        //-----------------------------------
+        // MIENTRAS
+        //-----------------------------------
+
+        else if(linea.find("mientras(") == 0){
+
+            string inicio =
+                nuevaEtiqueta();
+
+            string fin =
+                nuevaEtiqueta();
+
+            pilaInicioWhile.push(
+                inicio);
+
+            pilaFinWhile.push(
+                fin);
+
+            agregarCuadruplo(
+                "LABEL",
+                "-",
+                "-",
+                inicio);
+
+            size_t ini =
+                linea.find("(");
+
+            size_t finPar =
+                linea.find(")");
+
+            string condicion =
+                linea.substr(
+                    ini + 1,
+                    finPar - ini - 1);
+
+            string temp =
+                generarCondicion(
+                    condicion);
+
+            agregarCuadruplo(
+                "IF_FALSE",
+                temp,
+                "-",
+                fin);
+        }
+
+        //-----------------------------------
+        // CIERRE DE BLOQUES
+        //-----------------------------------
+
+        else if(linea == "}"){
+
+            if(!pilaInicioWhile.empty()){
+
+                agregarCuadruplo(
+                    "GOTO",
+                    "-",
+                    "-",
+                    pilaInicioWhile.top());
+
+                agregarCuadruplo(
+                    "LABEL",
+                    "-",
+                    "-",
+                    pilaFinWhile.top());
+
+                pilaInicioWhile.pop();
+                pilaFinWhile.pop();
+            }
+
+            else if(!pilaFinIf.empty()){
+
+                agregarCuadruplo(
+                    "LABEL",
+                    "-",
+                    "-",
+                    pilaFinIf.top());
+
+                pilaFinIf.pop();
+            }
+        }
+
+        //-----------------------------------
+        // ASIGNACION
+        //-----------------------------------
+
+        else if(linea.find("=") != string::npos){
+
+            int posIgual =
+                linea.find('=');
+
+            string variable =
+                linea.substr(
+                    0,
+                    posIgual);
+
+            string expresion =
+                linea.substr(
+                    posIgual + 1);
+
+            expresion =
+                quitarPuntoComa(
+                    expresion);
+
+            string resultado =
+                generarExpresion(
+                    expresion);
+
+            agregarCuadruplo(
+                "=",
+                resultado,
+                "-",
+                variable);
+        }
+    }
+}
+
+void mostrarCuadruplos(){
+
+    cout << endl;
+    cout << "CUADRUPLOS GENERADOS" << endl;
+    cout << endl;
+
+    cout
+    << "OP\t"
+    << "ARG1\t"
+    << "ARG2\t"
+    << "RES"
+    << endl;
+
+    cout
+    << "-----------------------------------"
+    << endl;
+
+    for(Cuadruplo c : cuadruplos){
+
+        cout
+        << c.op << "\t"
+        << c.arg1 << "\t"
+        << c.arg2 << "\t"
+        << c.res
+        << endl;
+    }
+}
+
+
+
 //            MAIN
 
 
@@ -1098,6 +1820,13 @@ int main(){
         }
     }
 
+    generarCodigoIntermedio(codigo);
+
+    mostrarCuadruplos();
+
+    
+
     return 0;
 }
+
 
