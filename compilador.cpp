@@ -3,15 +3,24 @@
 #include <vector>
 #include <cctype>
 #include <stack>
+#include <set>
 #include <sstream>
 
 using namespace std;
 
-//   ANALIZADOR LEXICO
+//          Índice
+//Analizador léxico linea 18
+//Analizador sintáctico linea 348
+//Analizador semántico linea 1032
+//Generación de código intermedio linea 1431
+
+
+//   Analizador léxico
 
 vector<int> tokens;
 vector<string> errores;
 int i = 0; 
+int erroreslexico=0;
 
 vector<int> lexico(string codigo){
 
@@ -143,11 +152,10 @@ vector<int> lexico(string codigo){
             }
 
             else{
-
                 cout<<"Error lexico: simbolo desconocido "<<c<<endl;
+                erroreslexico=1;
                 return {};
             }
-
             break;
 
         case 1:
@@ -197,6 +205,7 @@ vector<int> lexico(string codigo){
             else{
 
                 cout<<"Error lexico: numero flotante mal formado "<<lexema<<endl;
+                erroreslexico=1;
                 return {};
             }
 
@@ -336,7 +345,7 @@ vector<int> lexico(string codigo){
     return tokens;
 }
 
-//    ANALIZADOR SINTACTICO
+//Analizador Sintáctico
 
 bool sig(int t){
 
@@ -719,16 +728,12 @@ void op(){
 
     if(fin()) return;
 
-    if(tokens[i] == 1000 ||
-       tokens[i] == 2000 ||
-       tokens[i] == 2001)
-    {
+    if(tokens[i] == 1000 ||tokens[i] == 2000 ||tokens[i] == 2001){
 
         if(i + 1 < tokens.size() && tokens[i+1] == 44)
         {
             funcion();
         }
-
         else{
             varnum();
         }
@@ -749,9 +754,7 @@ void varnum(){
 
     if(fin()) return;
 
-    if(tokens[i] == 1000 ||
-       tokens[i] == 2000 ||
-       tokens[i] == 2001)
+    if(tokens[i] == 1000 ||tokens[i] == 2000 ||tokens[i] == 2001)
     {
 
         i++;
@@ -786,18 +789,12 @@ void funcion(){
     else if(tokens[i] == 306)
         redondea();
 
-    else if((tokens[i] == 1000 ||
-             tokens[i] == 2000 ||
-             tokens[i] == 2001)
-             &&
-            i + 1 < tokens.size() &&
-            tokens[i+1] == 44)
+    else if((tokens[i] == 1000 || tokens[i] == 2000 || tokens[i] == 2001) && i + 1 < tokens.size() && tokens[i+1] == 44)
     {
         factorial();
     }
 
     else{
-
         error("Error: funcion invalida");
     }
 }
@@ -805,7 +802,6 @@ void funcion(){
 void potencia(){
 
     i++;
-
     if(tokens[i] == 30){
 
         i++;
@@ -822,7 +818,6 @@ void potencia(){
 
         i++;
     }
-
     else{
 
         error("Error: se esperaba ,");
@@ -846,34 +841,26 @@ void raiz(){
     i++;
 
     if(tokens[i] == 30){
-
         i++;
     }
-
     else{
 
         error("Error: se esperaba (");
     }
-
     varnum();
-
     if(tokens[i] == 51){
 
         i++;
     }
-
     else{
-
         error("Error: se esperaba ,");
     }
 
     varnum();
 
     if(tokens[i] == 31){
-
         i++;
     }
-
     else{
 
         error("Error: se esperaba )");
@@ -1042,8 +1029,406 @@ void factorial(){
     }
 }
 
+//analizador semántico
 
-//generación de código intermedio
+set<string> tablaSimbolos;
+vector<string> erroresSemanticos;
+
+void errorSemantico(string mensaje){
+
+    erroresSemanticos.push_back(mensaje);
+}
+
+bool esPalabraReservada(string palabra){
+
+    return palabra == "si" ||
+           palabra == "sino" ||
+           palabra == "mientras" ||
+           palabra == "imprimir" ||
+           palabra == "declarar" ||
+           palabra == "potencia" ||
+           palabra == "raiz" ||
+           palabra == "sin" ||
+           palabra == "cos" ||
+           palabra == "tan" ||
+           palabra == "logb" ||
+           palabra == "redondear";
+}
+
+
+
+bool esFuncionMatematica(string palabra){
+
+    return palabra == "potencia" ||
+           palabra == "raiz" ||
+           palabra == "sin" ||
+           palabra == "cos" ||
+           palabra == "tan" ||
+           palabra == "logb" ||
+           palabra == "redondear";
+}
+
+int contarParametros(string texto){
+
+    int contador = 1;
+
+    for(char c : texto){
+
+        if(c == ',')
+            contador++;
+    }
+
+    return contador;
+}
+
+void verificarFunciones(string expresion){
+
+    vector<string> funcionesDos =
+    {
+        "potencia",
+        "raiz",
+        "logb"
+    };
+
+    vector<string> funcionesUno =
+    {
+        "sin",
+        "cos",
+        "tan",
+        "redondear"
+    };
+
+    for(string nombre : funcionesDos){
+
+        size_t pos = expresion.find(nombre + "(");
+
+        if(pos != string::npos){
+
+            size_t ini = expresion.find("(", pos);
+            size_t fin = expresion.find(")", ini);
+
+            if(fin == string::npos){
+
+                errorSemantico(
+                    "Funcion mal formada: "
+                    + nombre);
+
+                continue;
+            }
+
+            string parametros =
+                expresion.substr(
+                    ini + 1,
+                    fin - ini - 1);
+
+            if(contarParametros(parametros) != 2){
+
+                errorSemantico(
+                    nombre +
+                    " requiere 2 parametros");
+            }
+
+            string palabra = "";
+
+            for(char c : parametros){
+
+                if(isalpha(c))
+                    palabra += c;
+
+                else{
+
+                    if(!palabra.empty()){
+
+                        if(!tablaSimbolos.count(
+                            palabra))
+                        {
+                            errorSemantico(
+                            "Variable no declarada: "
+                            + palabra);
+                        }
+
+                        palabra.clear();
+                    }
+                }
+            }
+
+            if(!palabra.empty()){
+
+                if(!tablaSimbolos.count(
+                    palabra))
+                {
+                    errorSemantico(
+                    "Variable no declarada: "
+                    + palabra);
+                }
+            }
+        }
+    }
+
+    for(string nombre : funcionesUno){
+
+        size_t pos = expresion.find(nombre + "(");
+
+        if(pos != string::npos){
+
+            size_t ini = expresion.find("(", pos);
+            size_t fin = expresion.find(")", ini);
+
+            if(fin == string::npos){
+
+                errorSemantico("Funcion mal formada: "+ nombre);
+
+                continue;
+            }
+
+            string parametros =
+                expresion.substr(ini + 1, fin - ini - 1);
+
+            if(contarParametros(parametros) != 1){
+
+                errorSemantico(
+                    nombre +
+                    " requiere 1 parametro");
+            }
+
+            string palabra = "";
+
+            for(char c : parametros){
+
+                if(isalpha(c))
+                    palabra += c;
+
+                else{
+
+                    if(!palabra.empty()){
+
+                        if(!tablaSimbolos.count(palabra))
+                        {
+                            errorSemantico("Variable no declarada: "+ palabra);
+                        }
+
+                        palabra.clear();
+                    }
+                }
+            }
+
+            if(!palabra.empty()){
+
+                if(!tablaSimbolos.count(palabra))
+                {
+                    errorSemantico("Variable no declarada: "+ palabra);
+                }
+            }
+        }
+    }
+}
+
+string quitarEspacios(string s){
+
+    string r = "";
+
+    for(char c : s){
+
+        if(!isspace(c)){
+
+            r += c;
+        }
+    }
+
+    return r;
+}
+
+string quitarPuntoComa(string s){
+
+    string r = "";
+
+    for(char c : s){
+
+        if(c != ';'){
+
+            r += c;
+        }
+    }
+
+    return r;
+}
+
+bool contieneRelacional(string texto){
+
+    return texto.find("<=") != string::npos ||
+           texto.find(">=") != string::npos ||
+           texto.find("==") != string::npos ||
+           texto.find("!=") != string::npos ||
+           texto.find("<")  != string::npos ||
+           texto.find(">")  != string::npos;
+}
+
+void verificarVariablesExpresion(
+        string expresion){
+
+    string palabra = "";
+
+    for(char c : expresion){
+
+        if(isalpha(c)){
+
+            palabra += c;
+        }
+
+        else{
+
+            if(!palabra.empty()){
+
+                if(!esPalabraReservada(palabra)){
+                    if(tablaSimbolos.find(palabra)==tablaSimbolos.end()){
+                        
+                        errorSemantico("Variable no declarada: "+ palabra);
+                        }
+                    }
+
+                palabra.clear();
+            }
+        }
+    }
+
+    if(!palabra.empty()){
+
+        if(!esPalabraReservada(palabra)){
+                    if(tablaSimbolos.find(palabra)==tablaSimbolos.end()){
+                        errorSemantico("Variable no declarada: "+ palabra);
+                        }
+                    }
+    }
+}
+
+void analizarSemantica(
+        string codigo){
+
+    tablaSimbolos.clear();
+
+    erroresSemanticos.clear();
+
+    stringstream ss(codigo);
+
+    string linea;
+
+    while(getline(ss,linea)){
+
+        linea = quitarEspacios(linea);
+
+        if(linea.empty())
+            continue;
+
+        //--------------------------------
+        // DECLARAR
+        //--------------------------------
+
+        if(linea.find("declarar") == 0){
+
+            int posIgual = linea.find("=");
+
+            string variable = linea.substr(8, posIgual - 8);
+
+            if(tablaSimbolos.count(variable))
+            {
+                errorSemantico("Variable ya declarada: "+ variable);
+            }
+
+            else{
+
+                tablaSimbolos.insert(variable);
+            }
+
+            string expresion =linea.substr(posIgual + 1);
+
+            expresion = quitarPuntoComa(expresion);
+
+            if(contieneRelacional(expresion))
+            {
+                errorSemantico("Operador relacional no permitido en declaracion");
+            }
+
+            verificarVariablesExpresion(expresion);
+            verificarFunciones(expresion);
+        }
+
+        //--------------------------------
+        // IMPRIMIR
+        //--------------------------------
+
+        else if(linea.find("imprimir") == 0){
+            string variable =linea.substr(8);
+
+            variable = quitarPuntoComa(variable);
+
+            if(!tablaSimbolos.count(variable))
+            {
+                errorSemantico("Variable no declarada: "+ variable);
+            }
+        }
+
+        //--------------------------------
+        // ASIGNACION
+        //--------------------------------
+
+       else if(linea.find("si(") == 0){
+
+    continue;
+}
+
+else if(linea.find("mientras(") == 0){
+
+    continue;
+}
+
+else if(linea.find("=") != string::npos){
+
+            if(linea.find("==") != string::npos)
+                continue;
+
+            int posIgual = linea.find("=");
+
+            string variable = linea.substr(0, posIgual);
+
+            if(!tablaSimbolos.count(variable)){
+
+                errorSemantico("Variable no declarada: " + variable);
+            }
+
+            string expresion =linea.substr(posIgual + 1);
+
+            expresion =quitarPuntoComa(expresion);
+
+            if(contieneRelacional(expresion)){
+
+                errorSemantico("Operador relacional no permitido en asignacion");
+            }
+
+            verificarVariablesExpresion(expresion);
+            verificarFunciones(expresion);
+        }
+        }
+    }
+
+void mostrarErroresSemanticos(){
+
+    if(erroresSemanticos.empty()){
+
+        cout<< "\nANALISIS SEMANTICO VALIDO\n";
+        return;
+    }
+
+    cout<< "\nERRORES SEMANTICOS\n";
+
+    for(string e :erroresSemanticos)
+    {
+        cout<< e<< endl;
+    }
+}
+
+
+
+//Generación de código intermedio
 
 struct Cuadruplo{
 
@@ -1095,35 +1480,7 @@ void agregarCuadruplo(
     cuadruplos.push_back(c);
 }
 
-string quitarEspacios(string s){
 
-    string r = "";
-
-    for(char c : s){
-
-        if(!isspace(c)){
-
-            r += c;
-        }
-    }
-
-    return r;
-}
-
-string quitarPuntoComa(string s){
-
-    string r = "";
-
-    for(char c : s){
-
-        if(c != ';'){
-
-            r += c;
-        }
-    }
-
-    return r;
-}
 
 bool esOperador(char c){
 
@@ -1368,32 +1725,22 @@ string generarExpresion(string expr){
 
             char op = e[0];
 
-            while(!operadores.empty() &&
-                  prioridad(operadores.top())
-                  >= prioridad(op))
+            while(!operadores.empty() && prioridad(operadores.top()) >= prioridad(op))
             {
 
-                string der =
-                    operandos.top();
+                string der = operandos.top();
                 operandos.pop();
 
-                string izq =
-                    operandos.top();
+                string izq = operandos.top();
                 operandos.pop();
 
-                char operador =
-                    operadores.top();
+                char operador = operadores.top();
 
                 operadores.pop();
 
-                string temp =
-                    nuevoTemporal();
+                string temp = nuevoTemporal();
 
-                agregarCuadruplo(
-                    operadorTexto(operador),
-                    izq,
-                    der,
-                    temp);
+                agregarCuadruplo(operadorTexto(operador), izq, der, temp);
 
                 operandos.push(temp);
             }
@@ -1420,27 +1767,19 @@ string generarExpresion(string expr){
 
     while(!operadores.empty()){
 
-        string der =
-            operandos.top();
+        string der = operandos.top();
         operandos.pop();
 
-        string izq =
-            operandos.top();
+        string izq = operandos.top();
         operandos.pop();
 
-        char operador =
-            operadores.top();
+        char operador = operadores.top();
 
         operadores.pop();
 
-        string temp =
-            nuevoTemporal();
+        string temp = nuevoTemporal();
 
-        agregarCuadruplo(
-            operadorTexto(operador),
-            izq,
-            der,
-            temp);
+        agregarCuadruplo(operadorTexto(operador), izq, der, temp);
 
         operandos.push(temp);
     }
@@ -1484,27 +1823,17 @@ string generarCondicion(string condicion){
 
             op = r;
 
-            izq =
-                condicion.substr(
-                    0,
-                    pos);
+            izq = condicion.substr(0,pos);
 
-            der =
-                condicion.substr(
-                    pos + r.size());
+            der = condicion.substr(pos + r.size());
 
             break;
         }
     }
 
-    string temp =
-        nuevoTemporal();
+    string temp = nuevoTemporal();
 
-    agregarCuadruplo(
-        op,
-        izq,
-        der,
-        temp);
+    agregarCuadruplo(op, izq, der, temp);
 
     return temp;
 }
@@ -1531,29 +1860,17 @@ void generarCodigoIntermedio(string codigo){
 
         if(linea.find("declarar") == 0){
 
-            int posIgual =
-                linea.find('=');
+            int posIgual =linea.find('=');
 
-            string variable =
-                linea.substr(
-                    8,
-                    posIgual - 8);
+            string variable =linea.substr(8,posIgual - 8);
 
-            string expresion =
-                linea.substr(
-                    posIgual + 1);
+            string expresion = linea.substr(posIgual + 1);
 
-            expresion =
-                quitarPuntoComa(expresion);
+            expresion = quitarPuntoComa(expresion);
 
-            string resultado =
-                generarExpresion(expresion);
+            string resultado = generarExpresion(expresion);
 
-            agregarCuadruplo(
-                "=",
-                resultado,
-                "-",
-                variable);
+            agregarCuadruplo("=", resultado, "-", variable);
         }
 
         //-----------------------------------
@@ -1562,31 +1879,19 @@ void generarCodigoIntermedio(string codigo){
 
         else if(linea.find("si(") == 0){
 
-            size_t ini =
-                linea.find("(");
+            size_t ini = linea.find("(");
 
-            size_t fin =
-                linea.find(")");
+            size_t fin = linea.find(")");
 
-            string condicion =
-                linea.substr(
-                    ini + 1,
-                    fin - ini - 1);
+            string condicion = linea.substr(ini + 1, fin - ini - 1);
 
-            string temp =
-                generarCondicion(condicion);
+            string temp = generarCondicion(condicion);
 
-            string etiquetaFin =
-                nuevaEtiqueta();
+            string etiquetaFin = nuevaEtiqueta();
 
-            pilaFinIf.push(
-                etiquetaFin);
+            pilaFinIf.push(etiquetaFin);
 
-            agregarCuadruplo(
-                "IF_FALSE",
-                temp,
-                "-",
-                etiquetaFin);
+            agregarCuadruplo("IF_FALSE",temp,"-",etiquetaFin);
         }
 
         //-----------------------------------
@@ -1595,25 +1900,15 @@ void generarCodigoIntermedio(string codigo){
 
         else if(linea.find("sino") == 0){
 
-            string etiquetaNueva =
-                nuevaEtiqueta();
+            string etiquetaNueva = nuevaEtiqueta();
 
-            agregarCuadruplo(
-                "GOTO",
-                "-",
-                "-",
-                etiquetaNueva);
+            agregarCuadruplo("GOTO", "-", "-", etiquetaNueva);
 
-            agregarCuadruplo(
-                "LABEL",
-                "-",
-                "-",
-                pilaFinIf.top());
+            agregarCuadruplo("LABEL","-","-",pilaFinIf.top());
 
             pilaFinIf.pop();
 
-            pilaFinIf.push(
-                etiquetaNueva);
+            pilaFinIf.push(etiquetaNueva);
         }
 
         //-----------------------------------
@@ -1622,44 +1917,25 @@ void generarCodigoIntermedio(string codigo){
 
         else if(linea.find("mientras(") == 0){
 
-            string inicio =
-                nuevaEtiqueta();
+            string inicio =nuevaEtiqueta();
 
-            string fin =
-                nuevaEtiqueta();
+            string fin =nuevaEtiqueta();
 
-            pilaInicioWhile.push(
-                inicio);
+            pilaInicioWhile.push(inicio);
 
-            pilaFinWhile.push(
-                fin);
+            pilaFinWhile.push(fin);
 
-            agregarCuadruplo(
-                "LABEL",
-                "-",
-                "-",
-                inicio);
+            agregarCuadruplo("LABEL","-","-",inicio);
 
-            size_t ini =
-                linea.find("(");
+            size_t ini =linea.find("(");
 
-            size_t finPar =
-                linea.find(")");
+            size_t finPar =linea.find(")");
 
-            string condicion =
-                linea.substr(
-                    ini + 1,
-                    finPar - ini - 1);
+            string condicion =linea.substr(ini + 1, finPar - ini - 1);
 
-            string temp =
-                generarCondicion(
-                    condicion);
+            string temp = generarCondicion(condicion);
 
-            agregarCuadruplo(
-                "IF_FALSE",
-                temp,
-                "-",
-                fin);
+            agregarCuadruplo("IF_FALSE", temp, "-", fin);
         }
 
         //-----------------------------------
@@ -1670,17 +1946,9 @@ void generarCodigoIntermedio(string codigo){
 
             if(!pilaInicioWhile.empty()){
 
-                agregarCuadruplo(
-                    "GOTO",
-                    "-",
-                    "-",
-                    pilaInicioWhile.top());
+                agregarCuadruplo("GOTO","-","-",pilaInicioWhile.top());
 
-                agregarCuadruplo(
-                    "LABEL",
-                    "-",
-                    "-",
-                    pilaFinWhile.top());
+                agregarCuadruplo("LABEL","-","-",pilaFinWhile.top());
 
                 pilaInicioWhile.pop();
                 pilaFinWhile.pop();
@@ -1688,11 +1956,7 @@ void generarCodigoIntermedio(string codigo){
 
             else if(!pilaFinIf.empty()){
 
-                agregarCuadruplo(
-                    "LABEL",
-                    "-",
-                    "-",
-                    pilaFinIf.top());
+                agregarCuadruplo("LABEL","-","-",pilaFinIf.top());
 
                 pilaFinIf.pop();
             }
@@ -1704,31 +1968,17 @@ void generarCodigoIntermedio(string codigo){
 
         else if(linea.find("=") != string::npos){
 
-            int posIgual =
-                linea.find('=');
+            int posIgual = linea.find('=');
 
-            string variable =
-                linea.substr(
-                    0,
-                    posIgual);
+            string variable =linea.substr(0,posIgual);
 
-            string expresion =
-                linea.substr(
-                    posIgual + 1);
+            string expresion =linea.substr(posIgual + 1);
 
-            expresion =
-                quitarPuntoComa(
-                    expresion);
+            expresion =quitarPuntoComa(expresion);
 
-            string resultado =
-                generarExpresion(
-                    expresion);
+            string resultado =generarExpresion(expresion);
 
-            agregarCuadruplo(
-                "=",
-                resultado,
-                "-",
-                variable);
+            agregarCuadruplo("=",resultado,"-",variable);
         }
     }
 }
@@ -1739,25 +1989,13 @@ void mostrarCuadruplos(){
     cout << "CUADRUPLOS GENERADOS" << endl;
     cout << endl;
 
-    cout
-    << "OP\t"
-    << "ARG1\t"
-    << "ARG2\t"
-    << "RES"
-    << endl;
+    cout<< "OP\t"<< "ARG1\t"<< "ARG2\t"<< "RES"<< endl;
 
-    cout
-    << "-----------------------------------"
-    << endl;
+    cout<< "-----------------------------------"<< endl;
 
     for(Cuadruplo c : cuadruplos){
 
-        cout
-        << c.op << "\t"
-        << c.arg1 << "\t"
-        << c.arg2 << "\t"
-        << c.res
-        << endl;
+        cout<< c.op << "\t"<< c.arg1 << "\t"<< c.arg2 << "\t"<< c.res<< endl;
     }
 }
 
@@ -1820,10 +2058,13 @@ int main(){
         }
     }
 
+    analizarSemantica(codigo);
+    mostrarErroresSemanticos();    
+
+   if(erroreslexico==0 and errores.empty() and erroresSemanticos.empty()){
     generarCodigoIntermedio(codigo);
-
     mostrarCuadruplos();
-
+    }
     
 
     return 0;
