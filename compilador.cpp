@@ -2018,6 +2018,6 @@ int main(){
     generarCodigoIntermedio(codigo);
     mostrarCuadruplos();
     }
-
     return 0;
 }
+
