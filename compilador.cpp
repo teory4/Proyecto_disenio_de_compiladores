@@ -1083,20 +1083,9 @@ int contarParametros(string texto){
 
 void verificarFunciones(string expresion){
 
-    vector<string> funcionesDos =
-    {
-        "potencia",
-        "raiz",
-        "logb"
-    };
+    vector<string> funcionesDos ={"potencia","raiz","logb"};
 
-    vector<string> funcionesUno =
-    {
-        "sin",
-        "cos",
-        "tan",
-        "redondear"
-    };
+    vector<string> funcionesUno ={"sin","cos","tan","redondear"};
 
     for(string nombre : funcionesDos){
 
@@ -1109,17 +1098,13 @@ void verificarFunciones(string expresion){
 
             if(fin == string::npos){
 
-                errorSemantico(
-                    "Funcion mal formada: "
-                    + nombre);
+                errorSemantico("Funcion mal formada: "+ nombre);
 
                 continue;
             }
 
             string parametros =
-                expresion.substr(
-                    ini + 1,
-                    fin - ini - 1);
+                expresion.substr(ini + 1,fin - ini - 1);
 
             if(contarParametros(parametros) != 2){
 
@@ -1181,14 +1166,11 @@ void verificarFunciones(string expresion){
                 continue;
             }
 
-            string parametros =
-                expresion.substr(ini + 1, fin - ini - 1);
+            string parametros = expresion.substr(ini + 1, fin - ini - 1);
 
             if(contarParametros(parametros) != 1){
 
-                errorSemantico(
-                    nombre +
-                    " requiere 1 parametro");
+                errorSemantico(nombre +" requiere 1 parametro");
             }
 
             string palabra = "";
@@ -1263,11 +1245,9 @@ bool contieneRelacional(string texto){
            texto.find(">")  != string::npos;
 }
 
-void verificarVariablesExpresion(
-        string expresion){
+void verificarVariablesExpresion(string expresion){
 
     string palabra = "";
-
     for(char c : expresion){
 
         if(isalpha(c)){
@@ -1276,7 +1256,6 @@ void verificarVariablesExpresion(
         }
 
         else{
-
             if(!palabra.empty()){
 
                 if(!esPalabraReservada(palabra)){
@@ -1292,7 +1271,6 @@ void verificarVariablesExpresion(
     }
 
     if(!palabra.empty()){
-
         if(!esPalabraReservada(palabra)){
                     if(tablaSimbolos.find(palabra)==tablaSimbolos.end()){
                         errorSemantico("Variable no declarada: "+ palabra);
@@ -1301,8 +1279,7 @@ void verificarVariablesExpresion(
     }
 }
 
-void analizarSemantica(
-        string codigo){
+void analizarSemantica(string codigo){
 
     tablaSimbolos.clear();
 
@@ -1318,17 +1295,11 @@ void analizarSemantica(
 
         if(linea.empty())
             continue;
-
-        //--------------------------------
         // DECLARAR
-        //--------------------------------
-
         if(linea.find("declarar") == 0){
 
             int posIgual = linea.find("=");
-
             string variable = linea.substr(8, posIgual - 8);
-
             if(tablaSimbolos.count(variable))
             {
                 errorSemantico("Variable ya declarada: "+ variable);
@@ -1352,9 +1323,7 @@ void analizarSemantica(
             verificarFunciones(expresion);
         }
 
-        //--------------------------------
         // IMPRIMIR
-        //--------------------------------
 
         else if(linea.find("imprimir") == 0){
             string variable =linea.substr(8);
@@ -1367,21 +1336,16 @@ void analizarSemantica(
             }
         }
 
-        //--------------------------------
         // ASIGNACION
-        //--------------------------------
 
-       else if(linea.find("si(") == 0){
+    else if(linea.find("si(") == 0){
+            continue;
+            }
+    else if(linea.find("mientras(") == 0){
+        continue;
+        }
 
-    continue;
-}
-
-else if(linea.find("mientras(") == 0){
-
-    continue;
-}
-
-else if(linea.find("=") != string::npos){
+    else if(linea.find("=") != string::npos){
 
             if(linea.find("==") != string::npos)
                 continue;
@@ -1464,11 +1428,7 @@ string nuevoTemporal(){
     return "t" + to_string(contadorTemporal);
 }
 
-void agregarCuadruplo(
-    string op,
-    string arg1,
-    string arg2,
-    string res){
+void agregarCuadruplo(string op,string arg1,string arg2,string res){
 
     Cuadruplo c;
 
@@ -1576,10 +1536,7 @@ vector<string> extraerParametros(string texto){
        fin == string::npos)
         return params;
 
-    string dentro =
-        texto.substr(
-            ini + 1,
-            fin - ini - 1);
+    string dentro =texto.substr(ini + 1,fin - ini - 1);
 
     string actual = "";
 
@@ -1986,10 +1943,10 @@ void generarCodigoIntermedio(string codigo){
 void mostrarCuadruplos(){
 
     cout << endl;
-    cout << "CUADRUPLOS GENERADOS" << endl;
+    cout << "CUARTETOS GENERADOS" << endl;
     cout << endl;
 
-    cout<< "OP\t"<< "ARG1\t"<< "ARG2\t"<< "RES"<< endl;
+    cout<< "OP\t"<< "OP1\t"<< "OP2\t"<< "RES"<< endl;
 
     cout<< "-----------------------------------"<< endl;
 
@@ -2001,30 +1958,26 @@ void mostrarCuadruplos(){
 
 
 
-//            MAIN
+// MAIN
 
 
 int main(){
 
     string codigo = R"(
-
-    declarar x = 2;
-    declarar y = 3;
-    declarar res = 0;
-
-    mientras (x < 6) {
-
-        si (x % 2 == 0) {
-
-            res = res + potencia(x, y) + raiz(x, 2);
-        }
-
-        x = x + 1;
+    declarar a = 5;
+    declarar b = 3;
+    declarar c = 2;
+    declarar resultado = 0;
+    resultado = potencia(a,b);
+    si(resultado > 50){
+        resultado = resultado + raiz(resultado,2);
     }
-
-    imprimir res;
+    mientras(c < 6){
+        resultado = resultado + sin(c);
+        c = c + 1;
+    }
+    resultado = resultado + logb(8,2);
     )";
-
     tokens = lexico(codigo);
 
     if(tokens.empty()){
@@ -2065,8 +2018,6 @@ int main(){
     generarCodigoIntermedio(codigo);
     mostrarCuadruplos();
     }
-    
 
     return 0;
 }
-
