@@ -7,7 +7,6 @@
 #include <sstream>
 
 using namespace std;
-
 //          Índice
 //Analizador léxico linea 18
 //Analizador sintáctico linea 348
